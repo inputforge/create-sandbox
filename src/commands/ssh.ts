@@ -1,13 +1,15 @@
 import { execFileSync } from "node:child_process";
 
-import { sandboxName, vmSockPath } from "../lib/paths.js";
-import { isVmRunning } from "../lib/qemu.js";
+import { sandboxName } from "../lib/paths.js";
+import { getPlatformConfig } from "../lib/platform.js";
+import { getProvider } from "../lib/providers/index.js";
 import { readState } from "../lib/sandbox.js";
 
 export async function ssh(): Promise<void> {
   const name = sandboxName();
+  const provider = getProvider(getPlatformConfig());
 
-  if (!(await isVmRunning(vmSockPath()))) {
+  if (!(await provider.isRunning(name))) {
     console.error(
       `Sandbox "${name}" is not running. Start it first: create-sandbox start`
     );
@@ -30,7 +32,7 @@ export async function ssh(): Promise<void> {
         "UserKnownHostsFile=/dev/null",
         "-p",
         String(state.port),
-        "ubuntu@localhost",
+        "ubuntu@127.0.0.1",
       ],
       { stdio: "inherit" }
     );

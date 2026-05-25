@@ -41,7 +41,7 @@ Commands:
 
 const commands: Record<string, () => Promise<void>> = {
   destroy,
-  forward: () => forward(args._[1] as string | undefined),
+  forward: () => Promise.resolve(forward(args._[1] as string | undefined)),
   init,
   receive,
   send,

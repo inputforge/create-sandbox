@@ -1,24 +1,16 @@
 import { execFileSync, execSync } from "node:child_process";
 
-import { sandboxName, vmSockPath } from "../lib/paths.js";
-import { isVmRunning } from "../lib/qemu.js";
+import { sandboxName } from "../lib/paths.js";
+import { getPlatformConfig } from "../lib/platform.js";
+import { getProvider } from "../lib/providers/index.js";
+import { isRsyncAvailable } from "../lib/rsync.js";
 import { getRemotePath, readSandboxConfig, readState } from "../lib/sandbox.js";
-
-function isRsyncAvailable(): boolean {
-  try {
-    execSync(process.platform === "win32" ? "where rsync" : "which rsync", {
-      stdio: "ignore",
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export async function receive(): Promise<void> {
   const name = sandboxName();
+  const provider = getProvider(getPlatformConfig());
 
-  if (!(await isVmRunning(vmSockPath()))) {
+  if (!(await provider.isRunning(name))) {
     console.error(
       `Sandbox "${name}" is not running. Start it first: create-sandbox start`
     );
@@ -35,9 +27,7 @@ export async function receive(): Promise<void> {
   const remotePath = getRemotePath(config);
   const port = String(state.port);
 
-  const hasRsync = isRsyncAvailable();
-
-  if (hasRsync) {
+  if (isRsyncAvailable()) {
     console.log(`Receiving from ${remotePath}...`);
     execFileSync(
       "rsync",
@@ -45,14 +35,14 @@ export async function receive(): Promise<void> {
         "-avz",
         "-e",
         `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null`,
-        `ubuntu@localhost:${remotePath}/`,
+        `ubuntu@127.0.0.1:${remotePath}/`,
         "./",
       ],
       { stdio: "inherit" }
     );
   } else {
     console.log(`Receiving from ${remotePath} (via tar)...`);
-    const sshCmd = `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@localhost`;
+    const sshCmd = `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@127.0.0.1`;
     execSync(`${sshCmd} 'tar czf - -C ${remotePath} .' | tar xzf -`, {
       stdio: ["pipe", "inherit", "inherit"],
     });

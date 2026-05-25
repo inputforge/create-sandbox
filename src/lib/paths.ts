@@ -5,6 +5,7 @@ import envPaths from "env-paths";
 const paths = envPaths("create-sandbox", { suffix: "" });
 
 export const appDataDir = paths.data;
+export const limaHome = join(appDataDir, "lima");
 export const imagesDir = join(appDataDir, "images");
 export const sandboxesDir = join(appDataDir, "sandboxes");
 export const globalKeyPath = join(appDataDir, "id_ed25519");

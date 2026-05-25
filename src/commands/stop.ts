@@ -1,28 +1,22 @@
 import { spinner } from "@clack/prompts";
 
-import { sandboxName, vmSockPath } from "../lib/paths.js";
-import {
-  isVmRunning,
-  sendMonitorCommand,
-  waitForSockGone,
-} from "../lib/qemu.js";
+import { sandboxName } from "../lib/paths.js";
+import { getPlatformConfig } from "../lib/platform.js";
+import { getProvider } from "../lib/providers/index.js";
 
 export async function stop(): Promise<void> {
   const name = sandboxName();
-  const sockPath = vmSockPath();
+  const provider = getProvider(getPlatformConfig());
 
-  if (!(await isVmRunning(sockPath))) {
+  if (!(await provider.isRunning(name))) {
     console.error(`Sandbox "${name}" is not running.`);
     process.exit(1);
   }
 
   const s = spinner();
-  s.start("Sending shutdown signal...");
-
+  s.start("Stopping sandbox...");
   try {
-    await sendMonitorCommand(sockPath, "system_powerdown");
-    s.message("Waiting for VM to shut down...");
-    await waitForSockGone(sockPath);
+    await provider.stop(name);
     s.stop(`Sandbox "${name}" stopped.`);
   } catch (error) {
     s.stop("Error during shutdown.");

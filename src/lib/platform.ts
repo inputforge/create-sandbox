@@ -6,10 +6,11 @@ export type HostPlatform = "macos" | "linux" | "windows";
 export interface PlatformConfig {
   accel: string;
   arch: HostArch;
-  cpuArg: string;
+  extraArgs: string[];
   firmware: string | null;
   machine: string;
   platform: HostPlatform;
+  provider: "lima" | "qemu";
   qemuBin: string;
   ubuntuArch: "arm64" | "amd64";
 }
@@ -31,10 +32,11 @@ export function getPlatformConfig(): PlatformConfig {
     return {
       accel: "hvf",
       arch: "arm64",
-      cpuArg: "host",
+      extraArgs: [],
       firmware: "/opt/homebrew/share/qemu/edk2-aarch64-code.fd",
-      machine: "virt",
+      machine: "virt,gic-version=3",
       platform: "macos",
+      provider: "lima",
       qemuBin: "qemu-system-aarch64",
       ubuntuArch: "arm64",
     };
@@ -43,10 +45,11 @@ export function getPlatformConfig(): PlatformConfig {
     return {
       accel: "hvf",
       arch: "x86_64",
-      cpuArg: "host",
+      extraArgs: ["-no-hpet"],
       firmware: "/opt/homebrew/share/qemu/edk2-x86_64-code.fd",
       machine: "q35",
       platform: "macos",
+      provider: "lima",
       qemuBin: "qemu-system-x86_64",
       ubuntuArch: "amd64",
     };
@@ -55,10 +58,11 @@ export function getPlatformConfig(): PlatformConfig {
     return {
       accel: "kvm",
       arch: "arm64",
-      cpuArg: "host",
+      extraArgs: [],
       firmware: "/usr/share/qemu/edk2-aarch64-code.fd",
-      machine: "virt",
+      machine: "virt,gic-version=3",
       platform: "linux",
+      provider: "qemu",
       qemuBin: "qemu-system-aarch64",
       ubuntuArch: "arm64",
     };
@@ -67,10 +71,11 @@ export function getPlatformConfig(): PlatformConfig {
     return {
       accel: "kvm",
       arch: "x86_64",
-      cpuArg: "host",
+      extraArgs: [],
       firmware: null,
       machine: "q35",
       platform: "linux",
+      provider: "qemu",
       qemuBin: "qemu-system-x86_64",
       ubuntuArch: "amd64",
     };
@@ -79,10 +84,11 @@ export function getPlatformConfig(): PlatformConfig {
   return {
     accel: "whpx",
     arch: "x86_64",
-    cpuArg: "host",
+    extraArgs: [],
     firmware: null,
     machine: "q35",
     platform: "windows",
+    provider: "qemu",
     qemuBin: "qemu-system-x86_64",
     ubuntuArch: "amd64",
   };

@@ -2,9 +2,10 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, openSync } from "node:fs";
 import { createConnection } from "node:net";
+import { setPriority } from "node:os";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import type { PlatformConfig } from "./platform.js";
+import type { PlatformConfig } from "../../platform.js";
 
 export interface QemuStartOptions {
   cpus: number;
@@ -35,7 +36,7 @@ export function spawnQemu(opts: QemuStartOptions): void {
     "-accel",
     pc.accel,
     "-cpu",
-    pc.cpuArg,
+    "host",
     "-smp",
     String(cpus),
     "-m",
@@ -63,7 +64,8 @@ export function spawnQemu(opts: QemuStartOptions): void {
     "virtio-rng-pci",
     "-monitor",
     `unix:${sockPath},server,nowait`,
-    "-nographic"
+    "-nographic",
+    ...pc.extraArgs
   );
 
   const logFd = openSync(logPath, "a");
@@ -71,6 +73,12 @@ export function spawnQemu(opts: QemuStartOptions): void {
     detached: true,
     stdio: ["ignore", logFd, logFd],
   });
+  // QEMU's Hypervisor.framework vCPU threads spin even when the guest is idle
+  // (WFI is not translated to a blocking host syscall). Lowering priority
+  // prevents the spin from starving foreground processes.
+  if (child.pid !== undefined) {
+    setPriority(child.pid, 10);
+  }
   child.unref();
 }
 

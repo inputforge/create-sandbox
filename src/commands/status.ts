@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
-
-import { sandboxDir, sandboxName, vmSockPath } from "../lib/paths.js";
-import { isVmRunning } from "../lib/qemu.js";
+import { sandboxName } from "../lib/paths.js";
+import { getPlatformConfig } from "../lib/platform.js";
+import { getProvider } from "../lib/providers/index.js";
 import { readSandboxConfig, readState } from "../lib/sandbox.js";
 
 function formatUptime(ms: number): string {
@@ -19,25 +18,26 @@ function formatUptime(ms: number): string {
 
 export async function status(): Promise<void> {
   const name = sandboxName();
+  const provider = getProvider(getPlatformConfig());
 
-  if (!existsSync(sandboxDir())) {
+  if (!provider.isInitialized(name)) {
     console.log(`Sandbox: ${name}`);
     console.log("Status:  not initialized");
     return;
   }
 
-  const running = await isVmRunning(vmSockPath());
+  const running = await provider.isRunning(name);
   const state = readState();
 
   console.log(`Sandbox: ${name}`);
   console.log(`Status:  ${running ? "running" : "stopped"}`);
 
   if (running && state) {
-    console.log(`SSH:     ssh -p ${state.port} ubuntu@localhost`);
-    const uptimeMs = Date.now() - new Date(state.startedAt).getTime();
-    console.log(`Uptime:  ${formatUptime(uptimeMs)}`);
-    const config = readSandboxConfig();
-    const exposed = config.ports ?? [];
+    console.log(`SSH:     ssh -p ${state.port} ubuntu@127.0.0.1`);
+    console.log(
+      `Uptime:  ${formatUptime(Date.now() - new Date(state.startedAt).getTime())}`
+    );
+    const exposed = readSandboxConfig().ports ?? [];
     if (exposed.length > 0) {
       console.log(
         `Exposed: ${exposed.map((f) => `${f.guest}/${f.protocol ?? "tcp"}`).join(", ")}`
