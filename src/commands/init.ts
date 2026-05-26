@@ -1,9 +1,8 @@
-import { existsSync } from "node:fs";
-import { basename, join } from "node:path";
+import { userInfo } from "node:os";
+import { basename } from "node:path";
 
 import {
   cancel,
-  confirm,
   intro,
   isCancel,
   multiselect,
@@ -12,7 +11,10 @@ import {
   text,
 } from "@clack/prompts";
 
-import { writeSandboxConfig } from "../lib/sandbox.js";
+import {
+  readSandboxConfigOptional,
+  writeSandboxConfig,
+} from "../lib/sandbox.js";
 import type { SandboxConfig } from "../lib/sandbox.js";
 
 const VERSIONED_PACKAGES = new Set(["nodejs", "bun", "java", "go", "swift"]);
@@ -26,19 +28,32 @@ const PACKAGE_DEFAULTS: Record<string, string> = {
   swift: "6.0.3",
 };
 
+const ALL_PACKAGES = [
+  "nodejs",
+  "bun",
+  "python",
+  "java",
+  "go",
+  "ruby",
+  "php",
+  "swift",
+];
+
 function bail(): never {
   cancel("Cancelled.");
   process.exit(0);
 }
 
 async function collectPackageVersions(
-  selectedPackages: string[]
+  selectedPackages: string[],
+  existing: SandboxConfig | null
 ): Promise<SandboxConfig["packages"] | null> {
   const packages: SandboxConfig["packages"] = {};
   for (const pkg of selectedPackages) {
     if (VERSIONED_PACKAGES.has(pkg)) {
+      const existingVersion = existing?.packages[pkg]?.version;
       const ver = await text({
-        initialValue: PACKAGE_DEFAULTS[pkg] ?? "latest",
+        initialValue: existingVersion ?? PACKAGE_DEFAULTS[pkg] ?? "latest",
         message: `${pkg} version`,
       });
       if (isCancel(ver)) {
@@ -52,37 +67,11 @@ async function collectPackageVersions(
   return packages;
 }
 
-export async function init(): Promise<void> {
-  const name = basename(process.cwd());
-  intro(`create-sandbox — initializing "${name}"`);
-
-  const sandboxJsonPath = join(process.cwd(), "sandbox.json");
-  if (existsSync(sandboxJsonPath)) {
-    const overwrite = await confirm({
-      initialValue: false,
-      message: "sandbox.json already exists. Overwrite?",
-    });
-    if (isCancel(overwrite) || !overwrite) {
-      bail();
-    }
-  }
-
-  // Ubuntu version
-  const ubuntu = await select<string>({
-    initialValue: "26.04",
-    message: "Ubuntu version",
-    options: [
-      { label: "Ubuntu 26.04 LTS (Resolute Raccoon)", value: "26.04" },
-      { label: "Ubuntu 24.04 LTS (Noble Numbat)", value: "24.04" },
-    ],
-  });
-  if (isCancel(ubuntu)) {
-    bail();
-  }
-
-  // VM resources
+async function collectVmResources(
+  existing: SandboxConfig | null
+): Promise<SandboxConfig["vm"] | null> {
   const cpusRaw = await text({
-    initialValue: "4",
+    initialValue: String(existing?.vm.cpus ?? 4),
     message: "CPUs",
     validate: (v) =>
       Number.isNaN(Number(v)) || Number(v) < 1
@@ -90,33 +79,66 @@ export async function init(): Promise<void> {
         : undefined,
   });
   if (isCancel(cpusRaw)) {
-    bail();
+    return null;
   }
 
   const memory = await text({
-    initialValue: "4G",
+    initialValue: existing?.vm.memory ?? "4G",
     message: "Memory",
     placeholder: "4G",
     validate: (v) =>
       SIZE_RE.test(v ?? "") ? undefined : "Format: e.g. 4G or 2048M",
   });
   if (isCancel(memory)) {
-    bail();
+    return null;
   }
 
   const disk = await text({
-    initialValue: "20G",
+    initialValue: existing?.vm.disk ?? "20G",
     message: "Disk size",
     placeholder: "20G",
     validate: (v) =>
       SIZE_RE.test(v ?? "") ? undefined : "Format: e.g. 20G or 10240M",
   });
   if (isCancel(disk)) {
-    bail();
+    return null;
   }
 
-  // Package selection
+  return {
+    cpus: Number(cpusRaw),
+    disk: disk as string,
+    memory: memory as string,
+  };
+}
+
+export async function runInitPrompts(
+  existing: SandboxConfig | null
+): Promise<SandboxConfig | null> {
+  const name = basename(process.cwd());
+
+  const ubuntu = await select<string>({
+    initialValue: existing?.ubuntu ?? "26.04",
+    message: "Ubuntu version",
+    options: [
+      { label: "Ubuntu 26.04 LTS (Resolute Raccoon)", value: "26.04" },
+      { label: "Ubuntu 24.04 LTS (Noble Numbat)", value: "24.04" },
+    ],
+  });
+  if (isCancel(ubuntu)) {
+    return null;
+  }
+
+  const vm = await collectVmResources(existing);
+  if (!vm) {
+    return null;
+  }
+
+  const initialSelected = existing
+    ? ALL_PACKAGES.filter((pkg) => existing.packages[pkg]?.enabled === true)
+    : [];
+
   const selectedRaw = await multiselect<string>({
+    initialValues: initialSelected.length > 0 ? initialSelected : undefined,
     message: "Select packages to install",
     options: [
       { label: "Node.js", value: "nodejs" },
@@ -131,53 +153,56 @@ export async function init(): Promise<void> {
     required: false,
   });
   if (isCancel(selectedRaw)) {
-    bail();
+    return null;
   }
   const selectedPackages = selectedRaw as string[];
 
-  // Versions for selected versioned packages
-  const packages = await collectPackageVersions(selectedPackages);
+  const packages = await collectPackageVersions(selectedPackages, existing);
   if (!packages) {
-    bail();
+    return null;
   }
 
-  // Mark unselected packages as disabled
-  const allPackages = [
-    "nodejs",
-    "bun",
-    "python",
-    "java",
-    "go",
-    "ruby",
-    "php",
-    "swift",
-  ];
-  for (const pkg of allPackages) {
+  for (const pkg of ALL_PACKAGES) {
     if (!(pkg in packages)) {
       packages[pkg] = { enabled: false };
     }
   }
 
-  // Remote path
+  const defaultUsername = existing?.username ?? userInfo().username;
   const remotePath = await text({
-    initialValue: `/home/ubuntu/${name}`,
+    initialValue:
+      existing?.send?.remotePath ?? `/home/${defaultUsername}/${name}`,
     message: "Remote path for file sync",
   });
   if (isCancel(remotePath)) {
-    bail();
+    return null;
   }
 
-  const config: SandboxConfig = {
+  return {
     packages,
     send: { remotePath: remotePath as string },
     ubuntu: ubuntu as string,
-    vm: {
-      cpus: Number(cpusRaw),
-      disk: disk as string,
-      memory: memory as string,
-    },
+    username: defaultUsername,
+    vm,
   };
+}
+
+export async function init(): Promise<void> {
+  const name = basename(process.cwd());
+  const existing = readSandboxConfigOptional();
+  const isModify = existing !== null;
+
+  intro(
+    isModify
+      ? `create-sandbox — modifying config for "${name}"`
+      : `create-sandbox — initializing "${name}"`
+  );
+
+  const config = await runInitPrompts(existing);
+  if (!config) {
+    bail();
+  }
 
   writeSandboxConfig(config);
-  outro("sandbox.json created. Run: create-sandbox start");
+  outro("sandbox.json saved. Run: create-sandbox start");
 }

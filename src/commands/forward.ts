@@ -57,6 +57,7 @@ export function forward(portArg: string | undefined): void {
     `Forwarding localhost:${hostPort} → sandbox:${guestPort} (Ctrl+C to stop)`
   );
 
+  const { username } = readSandboxConfig();
   spawnSync(
     "ssh",
     [
@@ -71,7 +72,7 @@ export function forward(portArg: string | undefined): void {
       `${hostPort}:localhost:${guestPort}`,
       "-p",
       String(state.port),
-      "ubuntu@localhost",
+      `${username}@localhost`,
     ],
     { stdio: "inherit" }
   );

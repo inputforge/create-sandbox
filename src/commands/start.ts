@@ -2,6 +2,7 @@ import { intro, outro, spinner } from "@clack/prompts";
 
 import { sandboxName } from "../lib/paths.js";
 import { getPlatformConfig } from "../lib/platform.js";
+import { checkPrerequisites } from "../lib/prereqs.js";
 import { getProvider } from "../lib/providers/index.js";
 import {
   readConfigSnapshot,
@@ -15,6 +16,7 @@ export async function start(): Promise<void> {
   const name = sandboxName();
   const config = readSandboxConfig();
   const pc = getPlatformConfig();
+  checkPrerequisites(pc);
   const provider = getProvider(pc);
   const snapshot = readConfigSnapshot();
 
@@ -40,6 +42,6 @@ export async function start(): Promise<void> {
     .map((f) => `${f.guest}/${f.protocol ?? "tcp"}`)
     .join(", ");
   outro(
-    `Sandbox "${name}" is ready!\n  SSH: ssh -p ${port} ubuntu@127.0.0.1${exposed ? `\n  Exposed: ${exposed}` : ""}`
+    `Sandbox "${name}" is ready!\n  SSH: ssh -p ${port} ${config.username}@127.0.0.1${exposed ? `\n  Exposed: ${exposed}` : ""}`
   );
 }

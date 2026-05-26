@@ -33,11 +33,12 @@ export async function status(): Promise<void> {
   console.log(`Status:  ${running ? "running" : "stopped"}`);
 
   if (running && state) {
-    console.log(`SSH:     ssh -p ${state.port} ubuntu@127.0.0.1`);
+    const config = readSandboxConfig();
+    console.log(`SSH:     ssh -p ${state.port} ${config.username}@127.0.0.1`);
     console.log(
       `Uptime:  ${formatUptime(Date.now() - new Date(state.startedAt).getTime())}`
     );
-    const exposed = readSandboxConfig().ports ?? [];
+    const exposed = config.ports ?? [];
     if (exposed.length > 0) {
       console.log(
         `Exposed: ${exposed.map((f) => `${f.guest}/${f.protocol ?? "tcp"}`).join(", ")}`

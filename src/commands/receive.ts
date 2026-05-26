@@ -27,6 +27,7 @@ export async function receive(): Promise<void> {
   const remotePath = getRemotePath(config);
   const port = String(state.port);
 
+  const { username } = config;
   if (isRsyncAvailable()) {
     console.log(`Receiving from ${remotePath}...`);
     execFileSync(
@@ -35,14 +36,14 @@ export async function receive(): Promise<void> {
         "-avz",
         "-e",
         `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null`,
-        `ubuntu@127.0.0.1:${remotePath}/`,
+        `${username}@127.0.0.1:${remotePath}/`,
         "./",
       ],
       { stdio: "inherit" }
     );
   } else {
     console.log(`Receiving from ${remotePath} (via tar)...`);
-    const sshCmd = `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@127.0.0.1`;
+    const sshCmd = `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@127.0.0.1`;
     execSync(`${sshCmd} 'tar czf - -C ${remotePath} .' | tar xzf -`, {
       stdio: ["pipe", "inherit", "inherit"],
     });

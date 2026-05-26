@@ -27,6 +27,7 @@ export async function send(): Promise<void> {
   const remotePath = getRemotePath(config);
   const port = String(state.port);
 
+  const { username } = config;
   if (isRsyncAvailable()) {
     console.log(`Syncing to ${remotePath}...`);
     execFileSync(
@@ -39,13 +40,13 @@ export async function send(): Promise<void> {
         "--filter=:- .gitignore",
         "--exclude=.git",
         "./",
-        `ubuntu@127.0.0.1:${remotePath}/`,
+        `${username}@127.0.0.1:${remotePath}/`,
       ],
       { stdio: "inherit" }
     );
   } else {
     console.log(`Syncing to ${remotePath} (via tar)...`);
-    const sshCmd = `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@127.0.0.1`;
+    const sshCmd = `ssh -p ${port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${username}@127.0.0.1`;
     execSync(
       `tar czf - --exclude='.git' . | ${sshCmd} 'mkdir -p ${remotePath} && tar xzf - -C ${remotePath}'`,
       { stdio: ["pipe", "inherit", "inherit"] }

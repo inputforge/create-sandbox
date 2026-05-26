@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { sandboxName } from "../lib/paths.js";
 import { getPlatformConfig } from "../lib/platform.js";
 import { getProvider } from "../lib/providers/index.js";
-import { readState } from "../lib/sandbox.js";
+import { readSandboxConfig, readState } from "../lib/sandbox.js";
 
 export async function ssh(): Promise<void> {
   const name = sandboxName();
@@ -22,6 +22,8 @@ export async function ssh(): Promise<void> {
     process.exit(1);
   }
 
+  const { username } = readSandboxConfig();
+
   try {
     execFileSync(
       "ssh",
@@ -32,7 +34,7 @@ export async function ssh(): Promise<void> {
         "UserKnownHostsFile=/dev/null",
         "-p",
         String(state.port),
-        "ubuntu@127.0.0.1",
+        `${username}@127.0.0.1`,
       ],
       { stdio: "inherit" }
     );
