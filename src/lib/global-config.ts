@@ -9,6 +9,7 @@ export interface GlobalConfig {
     arch?: "arm64" | "amd64";
     instanceType?: string;
     region?: string;
+    sshCidr?: string;
   };
 }
 

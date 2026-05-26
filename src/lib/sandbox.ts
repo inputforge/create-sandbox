@@ -19,6 +19,7 @@ export interface SandboxConfig {
     arch?: "arm64" | "amd64";
     instanceType?: string;
     region?: string;
+    sshCidr?: string;
   };
   packages: Record<string, PackageConfig>;
   ports?: PortForward[];
@@ -39,6 +40,27 @@ export interface SandboxState {
   identityFile?: string;
   port: number;
   startedAt: string;
+}
+
+function isValidPort(port: unknown): port is number {
+  return (
+    typeof port === "number" &&
+    Number.isInteger(port) &&
+    port >= 1 &&
+    port <= 65_535
+  );
+}
+
+function normalizeHost(host: unknown): string {
+  return typeof host === "string" && host.trim() ? host.trim() : "127.0.0.1";
+}
+
+function isValidStartedAt(startedAt: unknown): startedAt is string {
+  return (
+    typeof startedAt === "string" &&
+    startedAt.trim().length > 0 &&
+    !Number.isNaN(new Date(startedAt).getTime())
+  );
 }
 
 export function readSandboxConfig(cwd: string = process.cwd()): SandboxConfig {
@@ -69,12 +91,21 @@ export function readState(name?: string): SandboxState | null {
     return null;
   }
   try {
-    const state = JSON.parse(readFileSync(p, "utf-8")) as Partial<SandboxState>;
-    if (!state.port || !state.startedAt) {
+    const state = JSON.parse(readFileSync(p, "utf-8")) as Record<
+      string,
+      unknown
+    >;
+    if (!isValidPort(state.port) || !isValidStartedAt(state.startedAt)) {
+      return null;
+    }
+    if (
+      state.identityFile !== undefined &&
+      typeof state.identityFile !== "string"
+    ) {
       return null;
     }
     return {
-      host: state.host ?? "127.0.0.1",
+      host: normalizeHost(state.host),
       identityFile: state.identityFile,
       port: state.port,
       startedAt: state.startedAt,

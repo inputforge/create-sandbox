@@ -23,6 +23,10 @@ export async function ssh(): Promise<void> {
     console.error("No state found. The sandbox may need to be restarted.");
     process.exit(1);
   }
+  if (!state.host.trim()) {
+    console.error("Missing SSH host in state. Restart the sandbox.");
+    process.exit(1);
+  }
 
   try {
     execFileSync(

@@ -1,4 +1,5 @@
-import { execFile, execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { once } from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import {
@@ -39,6 +40,8 @@ export interface LaunchInstanceOptions {
   securityGroupId: string;
   userData: string;
 }
+
+const IPV4_CIDR_RE = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/u;
 
 function getErrorName(error: unknown): string | undefined {
   return error instanceof Error ? error.name : undefined;
@@ -141,10 +144,31 @@ export async function deleteKeyPair(
   }
 }
 
+function validateSshCidr(cidr: string): void {
+  if (!IPV4_CIDR_RE.test(cidr)) {
+    throw new Error(
+      `Invalid EC2 SSH CIDR "${cidr}". Use an IPv4 CIDR like "203.0.113.10/32".`
+    );
+  }
+  const [address, prefixRaw] = cidr.split("/");
+  const prefix = Number.parseInt(prefixRaw ?? "", 10);
+  const octets = (address ?? "")
+    .split(".")
+    .map((part) => Number.parseInt(part, 10));
+  const hasInvalidOctet = octets.some((octet) => octet < 0 || octet > 255);
+  if (hasInvalidOctet || prefix < 1 || prefix > 32) {
+    throw new Error(
+      `Invalid EC2 SSH CIDR "${cidr}". Use an IPv4 CIDR like "203.0.113.10/32".`
+    );
+  }
+}
+
 export async function ensureSecurityGroup(
   ec2Client: EC2Client,
-  groupName: string
+  groupName: string,
+  sshCidr: string
 ): Promise<string> {
+  validateSshCidr(sshCidr);
   let groupId: string | undefined;
   try {
     const existing = await ec2Client.send(
@@ -178,7 +202,7 @@ export async function ensureSecurityGroup(
           {
             FromPort: 22,
             IpProtocol: "tcp",
-            IpRanges: [{ CidrIp: "0.0.0.0/0" }],
+            IpRanges: [{ CidrIp: sshCidr }],
             ToPort: 22,
           },
         ],
@@ -316,7 +340,7 @@ export async function streamInstallLog(
   host: string,
   identityFile: string
 ): Promise<void> {
-  const child = execFile("ssh", [
+  const child = spawn("ssh", [
     "-i",
     identityFile,
     "-o",
@@ -328,19 +352,49 @@ export async function streamInstallLog(
     `ubuntu@${host}`,
     "until [ -f /var/log/install-tools.log ]; do sleep 2; done; tail -f /var/log/install-tools.log",
   ]);
+  let seenDone = false;
+  let stdoutBuffer = "";
+  let stderr = "";
 
-  child.stderr?.resume();
+  const closePromise = once(child, "close") as Promise<
+    [number | null, NodeJS.Signals | null]
+  >;
+  const errorPromise = (async () => {
+    const [error] = await once(child, "error");
+    throw error instanceof Error ? error : new Error(String(error));
+  })();
+  const stderrDone = (async () => {
+    for await (const chunk of child.stderr) {
+      stderr += (chunk as Buffer).toString();
+    }
+  })();
 
-  for await (const chunk of child.stdout ?? []) {
-    for (const line of (chunk as Buffer).toString().split("\n")) {
+  for await (const chunk of child.stdout) {
+    stdoutBuffer += (chunk as Buffer).toString();
+    const lines = stdoutBuffer.split("\n");
+    stdoutBuffer = lines.pop() ?? "";
+    for (const line of lines) {
       if (!line.trim()) {
         continue;
       }
       console.log(`  ${line}`);
       if (line.includes("==> Done.")) {
+        seenDone = true;
         child.kill();
-        return;
+        break;
       }
     }
+    if (seenDone) {
+      break;
+    }
+  }
+
+  const [code, signal] = await Promise.race([closePromise, errorPromise]);
+  await stderrDone;
+  if (!seenDone) {
+    const detail = stderr.trim() ? ` stderr: ${stderr.trim()}` : "";
+    throw new Error(
+      `Install log stream ended before completion marker. Exit code: ${code ?? "unknown"}, signal: ${signal ?? "none"}.${detail}`
+    );
   }
 }

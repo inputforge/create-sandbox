@@ -35,6 +35,7 @@ import {
 interface Ec2ProviderConfig {
   instanceType: string;
   region?: string;
+  sshCidr?: string;
 }
 
 function createClients(region: string): {
@@ -54,6 +55,15 @@ function requireRegion(config: Ec2ProviderConfig): string {
     );
   }
   return config.region;
+}
+
+function requireSshCidr(config: Ec2ProviderConfig): string {
+  if (!config.sshCidr) {
+    throw new Error(
+      'EC2 provider requires an SSH allowlist CIDR. Add "ec2.sshCidr" to sandbox.json or set CREATE_SANDBOX_EC2_SSH_CIDR.'
+    );
+  }
+  return config.sshCidr;
 }
 
 function readEc2State(name: string): Ec2InstanceState | null {
@@ -161,6 +171,7 @@ export function createEc2Provider(
       }
 
       mkdirSync(sandboxDir(name), { recursive: true });
+      const sshCidr = requireSshCidr(providerConfig);
 
       const s = spinner();
       s.start(`Resolving Ubuntu ${config.ubuntu} AMI...`);
@@ -175,7 +186,8 @@ export function createEc2Provider(
       await ensureKeyPair(ec2Client, keyPairName, publicKey);
       const securityGroupId = await ensureSecurityGroup(
         ec2Client,
-        securityGroupName
+        securityGroupName,
+        sshCidr
       );
       const installScript = buildInstallScript(config.packages, arch);
       const userData = buildUserData(publicKey, installScript);
@@ -189,15 +201,15 @@ export function createEc2Provider(
         securityGroupId,
         userData,
       });
-      const publicIp = requirePublicIp(
-        await waitForState(ec2Client, instanceId, "running"),
-        instanceId
-      );
       writeEc2State(name, {
         instanceId,
         keyPairName,
         securityGroupId,
       });
+      const publicIp = requirePublicIp(
+        await waitForState(ec2Client, instanceId, "running"),
+        instanceId
+      );
       launch.stop("EC2 instance running.");
 
       const ssh = spinner();

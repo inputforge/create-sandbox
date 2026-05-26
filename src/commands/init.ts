@@ -52,6 +52,57 @@ async function collectPackageVersions(
   return packages;
 }
 
+async function collectEc2Config(): Promise<SandboxConfig["ec2"] | null> {
+  const region = await text({
+    message: "EC2 region",
+    placeholder: "us-east-1",
+    validate: (v) => ((v ?? "").trim() ? undefined : "Region is required"),
+  });
+  if (isCancel(region)) {
+    return null;
+  }
+
+  const arch = await select<"amd64" | "arm64">({
+    initialValue: "amd64",
+    message: "EC2 architecture",
+    options: [
+      { label: "x86_64 / amd64 (t3, m/c/r families)", value: "amd64" },
+      { label: "arm64 / Graviton (t4g, m/c/r g families)", value: "arm64" },
+    ],
+  });
+  if (isCancel(arch)) {
+    return null;
+  }
+
+  const sshCidr = await text({
+    message: "SSH allowed CIDR",
+    placeholder: "203.0.113.10/32",
+    validate: (v) =>
+      (v ?? "").trim()
+        ? undefined
+        : "CIDR is required, for example your public IP with /32",
+  });
+  if (isCancel(sshCidr)) {
+    return null;
+  }
+
+  const instanceType = await text({
+    message: "EC2 instance type",
+    placeholder: "optional, mapped from CPUs/memory when blank",
+  });
+  if (isCancel(instanceType)) {
+    return null;
+  }
+
+  const trimmedInstanceType = (instanceType as string).trim();
+  return {
+    arch,
+    region: (region as string).trim(),
+    sshCidr: (sshCidr as string).trim(),
+    ...(trimmedInstanceType ? { instanceType: trimmedInstanceType } : {}),
+  };
+}
+
 export async function init(): Promise<void> {
   const name = basename(process.cwd());
   intro(`create-sandbox — initializing "${name}"`);
@@ -81,41 +132,11 @@ export async function init(): Promise<void> {
 
   let ec2Config: SandboxConfig["ec2"];
   if (provider === "ec2") {
-    const region = await text({
-      message: "EC2 region",
-      placeholder: "us-east-1",
-      validate: (v) => ((v ?? "").trim() ? undefined : "Region is required"),
-    });
-    if (isCancel(region)) {
+    const collectedEc2Config = await collectEc2Config();
+    if (!collectedEc2Config) {
       bail();
     }
-
-    const arch = await select<"amd64" | "arm64">({
-      initialValue: "amd64",
-      message: "EC2 architecture",
-      options: [
-        { label: "x86_64 / amd64 (t3, m/c/r families)", value: "amd64" },
-        { label: "arm64 / Graviton (t4g, m/c/r g families)", value: "arm64" },
-      ],
-    });
-    if (isCancel(arch)) {
-      bail();
-    }
-
-    const instanceType = await text({
-      message: "EC2 instance type",
-      placeholder: "optional, mapped from CPUs/memory when blank",
-    });
-    if (isCancel(instanceType)) {
-      bail();
-    }
-
-    const trimmedInstanceType = (instanceType as string).trim();
-    ec2Config = {
-      arch,
-      region: (region as string).trim(),
-      ...(trimmedInstanceType ? { instanceType: trimmedInstanceType } : {}),
-    };
+    ec2Config = collectedEc2Config;
   }
 
   const ubuntu = await select<string>({

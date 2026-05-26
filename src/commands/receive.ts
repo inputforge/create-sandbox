@@ -27,7 +27,11 @@ export async function receive(): Promise<void> {
   }
 
   const remotePath = getRemotePath(config);
-  const sshTransport = buildSshTransport(state.port, state.identityFile);
+  const sshTransport = buildSshTransport({
+    disableHostKeyVerification: true,
+    identityFile: state.identityFile,
+    port: state.port,
+  });
 
   if (isRsyncAvailable()) {
     console.log(`Receiving from ${remotePath}...`);

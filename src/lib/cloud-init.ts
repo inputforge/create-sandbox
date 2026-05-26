@@ -4,10 +4,7 @@ export function buildUserData(pubKey: string, installScript: string): string {
     .map((line) => `      ${line}`)
     .join("\n");
   return `#cloud-config
-password: ubuntu
-chpasswd:
-  expire: false
-ssh_pwauth: true
+ssh_pwauth: false
 ssh_authorized_keys:
   - ${pubKey}
 

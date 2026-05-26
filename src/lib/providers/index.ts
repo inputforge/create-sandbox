@@ -32,14 +32,19 @@ interface Ec2Config {
   arch: "arm64" | "amd64";
   instanceType: string;
   region?: string;
+  sshCidr?: string;
 }
 
 function parseMemoryMiB(memory: string): number {
-  const value = Number.parseInt(memory, 10);
-  if (Number.isNaN(value)) {
-    return Number.POSITIVE_INFINITY;
+  const match = memory.trim().match(/^(\d+)\s*(M|MB|MIB|G|GB|GIB)$/iu);
+  if (!match) {
+    throw new Error(
+      `Unsupported memory format "${memory}". Use values like "1024M" or "1G".`
+    );
   }
-  return memory.toUpperCase().endsWith("G") ? value * 1024 : value;
+  const value = Number.parseInt(match[1] ?? "", 10);
+  const unit = (match[2] ?? "").toUpperCase();
+  return unit.startsWith("G") ? value * 1024 : value;
 }
 
 function mapInstanceType(
@@ -80,6 +85,10 @@ function mergeEc2Config(
       globalConfig.ec2?.instanceType ??
       mapInstanceType(sandboxConfig.vm.cpus, sandboxConfig.vm.memory, arch),
     region: sandboxConfig.ec2?.region ?? globalConfig.ec2?.region,
+    sshCidr:
+      sandboxConfig.ec2?.sshCidr ??
+      globalConfig.ec2?.sshCidr ??
+      process.env.CREATE_SANDBOX_EC2_SSH_CIDR,
   };
 }
 

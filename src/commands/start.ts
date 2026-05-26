@@ -10,6 +10,7 @@ import {
   writeConfigSnapshot,
   writeState,
 } from "../lib/sandbox.js";
+import { buildSshTransport } from "../lib/ssh-command.js";
 import { send } from "./send.js";
 
 export async function start(): Promise<void> {
@@ -45,7 +46,8 @@ export async function start(): Promise<void> {
   const exposed = (config.ports ?? [])
     .map((f) => `${f.guest}/${f.protocol ?? "tcp"}`)
     .join(", ");
+  const sshCommand = buildSshTransport({ identityFile, port });
   outro(
-    `Sandbox "${name}" is ready!\n  SSH: ssh -p ${port} ubuntu@${host}${exposed ? `\n  Exposed: ${exposed}` : ""}`
+    `Sandbox "${name}" is ready!\n  SSH: ${sshCommand} ubuntu@${host}${exposed ? `\n  Exposed: ${exposed}` : ""}`
   );
 }
