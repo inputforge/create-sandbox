@@ -40,7 +40,7 @@ export function createLimaProvider(pc: PlatformConfig): VmProvider {
           if (config.ubuntu !== snapshot.ubuntu) {
             throw new Error(
               `sandbox.json "ubuntu" changed (${snapshot.ubuntu} → ${config.ubuntu}).\n` +
-                "This requires a full rebuild. Run: create-sandbox destroy && create-sandbox start"
+                "This requires a full rebuild. Run: sandboxctl destroy && sandboxctl start"
             );
           }
           if (
@@ -49,7 +49,7 @@ export function createLimaProvider(pc: PlatformConfig): VmProvider {
           ) {
             throw new Error(
               'sandbox.json "packages" changed.\n' +
-                "This requires a full rebuild. Run: create-sandbox destroy && create-sandbox start"
+                "This requires a full rebuild. Run: sandboxctl destroy && sandboxctl start"
             );
           }
         }

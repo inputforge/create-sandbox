@@ -90,7 +90,7 @@ export function readSandboxConfig(cwd: string = process.cwd()): SandboxConfig {
   const p = join(cwd, "sandbox.json");
   if (!existsSync(p)) {
     console.error(
-      "No sandbox.json found in current directory. Run: create-sandbox init"
+      "No sandbox.json found in current directory. Run: sandboxctl init"
     );
     process.exit(1);
   }

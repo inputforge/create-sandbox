@@ -1,5 +1,5 @@
 {
-  "name": "@inputforge/create-sandbox",
+  "name": "@inputforge/sandboxctl",
   "private": true,
   "workspaces": [
     "packages/providers",

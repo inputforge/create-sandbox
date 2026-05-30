@@ -2,7 +2,7 @@ import { basename, join } from "node:path";
 
 import envPaths from "env-paths";
 
-const paths = envPaths("create-sandbox", { suffix: "" });
+const paths = envPaths("sandboxctl", { suffix: "" });
 
 export const appDataDir = paths.data;
 export const imagesDir = join(appDataDir, "images");

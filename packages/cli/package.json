@@ -1,9 +1,9 @@
 {
-  "name": "@inputforge/create-sandbox",
+  "name": "@inputforge/sandboxctl",
   "version": "0.1.0",
   "description": "Create and manage Linux sandbox VMs for development",
   "bin": {
-    "create-sandbox": "./dist/index.js"
+    "sandboxctl": "./dist/index.js"
   },
   "files": [
     "dist"

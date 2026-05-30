@@ -5,7 +5,7 @@ import { reportPrerequisites } from "../lib/prereqs.js";
 
 export function doctor(): number {
   const pc = getPlatformConfig();
-  intro(`create-sandbox doctor — ${pc.platform} / ${pc.arch}`);
+  intro(`sandboxctl doctor — ${pc.platform} / ${pc.arch}`);
 
   const results = reportPrerequisites(pc);
   let allOk = true;
