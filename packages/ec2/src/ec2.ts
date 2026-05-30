@@ -184,7 +184,7 @@ export async function ensureSecurityGroup(
   if (!groupId) {
     const created = await ec2Client.send(
       new CreateSecurityGroupCommand({
-        Description: "create-sandbox SSH access",
+        Description: "sandboxctl SSH access",
         GroupName: groupName,
       })
     );

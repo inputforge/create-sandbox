@@ -32,7 +32,7 @@ export async function start(): Promise<void> {
   const provider = await getProvider(config, globalConfig, pc);
   const snapshot = readConfigSnapshot();
 
-  intro(`create-sandbox — starting "${name}"`);
+  intro(`sandboxctl — starting "${name}"`);
 
   const reporter = createReporter();
   const { host, identityFile, port } = await provider.start(

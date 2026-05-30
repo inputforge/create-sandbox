@@ -22,10 +22,10 @@ const command = args._[0] as string | undefined;
 
 if (args.help) {
   console.log(`
-create-sandbox — Linux VM sandbox manager
+sandboxctl — Linux VM sandbox manager
 
 Usage:
-  create-sandbox <command>
+  sandboxctl <command>
 
 Commands:
   init              Configure sandbox.json interactively

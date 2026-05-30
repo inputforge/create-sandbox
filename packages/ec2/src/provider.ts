@@ -139,8 +139,8 @@ export function createEc2Provider(
       const region = requireRegion(providerConfig);
       const { ec2Client, ssmClient } = createClients(region);
       const { privateKeyPath, publicKey } = findSshKeyPair();
-      const keyPairName = `create-sandbox-${name}`;
-      const securityGroupName = `create-sandbox-${name}`;
+      const keyPairName = `sandboxctl-${name}`;
+      const securityGroupName = `sandboxctl-${name}`;
       const existing = readEc2State(name);
 
       if (existing) {
@@ -156,7 +156,7 @@ export function createEc2Provider(
         ) {
           s.stop("EC2 instance cannot be restarted.");
           throw new Error(
-            `EC2 instance ${existing.instanceId} is ${instance.state}. Run create-sandbox destroy and start again.`
+            `EC2 instance ${existing.instanceId} is ${instance.state}. Run sandboxctl destroy and start again.`
           );
         }
         if (instance.state !== "running" && instance.state !== "pending") {

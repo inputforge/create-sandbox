@@ -296,13 +296,13 @@ async function subsequentBoot(
     if (config.ubuntu !== snapshot.ubuntu) {
       throw new Error(
         `sandbox.json "ubuntu" changed (${snapshot.ubuntu} → ${config.ubuntu}).\n` +
-          "This requires a full rebuild. Run: create-sandbox destroy && create-sandbox start"
+          "This requires a full rebuild. Run: sandboxctl destroy && sandboxctl start"
       );
     }
     if (JSON.stringify(config.packages) !== JSON.stringify(snapshot.packages)) {
       throw new Error(
         'sandbox.json "packages" changed.\n' +
-          "This requires a full rebuild. Run: create-sandbox destroy && create-sandbox start"
+          "This requires a full rebuild. Run: sandboxctl destroy && sandboxctl start"
       );
     }
   }
@@ -350,9 +350,7 @@ export function createQemuProvider(pc: PlatformConfig): VmProvider {
   return {
     destroy: async (name, _reporter) => {
       if (await isVmRunning(vmSockPath(name))) {
-        throw new Error(
-          "Sandbox is running. Stop it first: create-sandbox stop"
-        );
+        throw new Error("Sandbox is running. Stop it first: sandboxctl stop");
       }
       rmSync(sandboxDir(name), { force: true, recursive: true });
     },

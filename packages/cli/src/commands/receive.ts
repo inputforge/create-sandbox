@@ -19,7 +19,7 @@ export async function receive(): Promise<void> {
 
   if (!(await provider.isRunning(name))) {
     console.error(
-      `Sandbox "${name}" is not running. Start it first: create-sandbox start`
+      `Sandbox "${name}" is not running. Start it first: sandboxctl start`
     );
     process.exit(1);
   }

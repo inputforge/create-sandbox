@@ -298,8 +298,8 @@ export async function init(): Promise<void> {
 
   intro(
     isModify
-      ? `create-sandbox — modifying config for "${name}"`
-      : `create-sandbox — initializing "${name}"`
+      ? `sandboxctl — modifying config for "${name}"`
+      : `sandboxctl — initializing "${name}"`
   );
 
   const config = await runInitPrompts(existing);
@@ -308,5 +308,5 @@ export async function init(): Promise<void> {
   }
 
   writeSandboxConfig(config);
-  outro("sandbox.json saved. Run: create-sandbox start");
+  outro("sandbox.json saved. Run: sandboxctl start");
 }

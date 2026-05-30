@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import envPaths from "env-paths";
 
-const paths = envPaths("create-sandbox", { suffix: "" });
+const paths = envPaths("sandboxctl", { suffix: "" });
 
 export const appDataDir = paths.data;
 export const imagesDir = join(appDataDir, "images");
@@ -80,7 +80,7 @@ function generateSshKey(): string {
   mkdirSync(appDataDir, { recursive: true });
   execFileSync(
     "ssh-keygen",
-    ["-t", "ed25519", "-f", globalKeyPath, "-N", "", "-C", "create-sandbox"],
+    ["-t", "ed25519", "-f", globalKeyPath, "-N", "", "-C", "sandboxctl"],
     { stdio: "ignore" }
   );
   return readFileSync(globalKeyPubPath, "utf-8").trim();
